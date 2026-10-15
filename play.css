@@ -1,0 +1,26 @@
+/* play.css — the shell a published Banner sits in. The Banner's own styles are lab.css. */
+html, body { margin: 0; height: 100%; background: #000; }
+body { color: #e6e9ee; font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+/* A box a Banner is fitted into. 16:9, because the stage is. */
+.frame { position: relative; overflow: hidden; background: #000; aspect-ratio: 16 / 9; width: 100%; }
+
+/* The stage is the composition's own size; only its transform changes. */
+.stage {
+  position: absolute; left: 50%; top: 50%;
+  width: 1920px; height: 1080px;
+  transform-origin: 50% 50%;
+}
+
+/* The banner page: one Banner, the whole viewport. */
+#host { position: fixed; inset: 0; }
+
+/* The landing page. */
+.wrap { max-width: 980px; margin: 0 auto; padding: 28px 20px 64px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 17px; margin: 32px 0 8px; }
+p.sub { color: #9aa4b2; margin: 0 0 4px; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; color: #cfd6e0; }
+a { color: #5aa9ff; }
+.meta { color: #9aa4b2; margin: 8px 0 0; }
+.error { color: #ff8b82; font-family: ui-monospace, Menlo, monospace; padding: 12px; }

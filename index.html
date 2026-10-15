@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KoKitchen banners — own cup and membership</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="lab.css">
+<link rel="stylesheet" href="play.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>KoKitchen banners</h1>
+  <p class="sub">The own-cup banner and the membership ad, live from <code>banner-lab</code> — the same
+  runtime that renders them to video.</p>
+
+  <h2>Bring your own cup</h2>
+  <p class="meta"><code>u1-b0024</code> · <a href="own-cup.html">open full screen</a></p>
+  <div class="frame" id="byoc"></div>
+
+  <h2>Membership</h2>
+  <p class="meta"><code>k1-b0001</code> · <a href="membership.html">open full screen</a></p>
+  <div class="frame" id="membership"></div>
+</div>
+<script src="vendor/gsap.min.js"></script>
+<script>
+  const fail = (m) => { const d = document.createElement("div"); d.className = "error"; d.textContent = m; document.body.appendChild(d); };
+  window.addEventListener("error", (e) => fail(`${e.message} @ ${e.filename || "?"}:${e.lineno || 0}`));
+  window.addEventListener("unhandledrejection", (e) => fail(`rejected: ${e.reason}`));
+</script>
+<script type="module">
+  import { play } from "./play.mjs";
+  await Promise.all([
+    play("u1-b0024", document.getElementById("byoc")),
+    play("k1-b0001", document.getElementById("membership")),
+  ]);
+</script>
+</body>
+</html>

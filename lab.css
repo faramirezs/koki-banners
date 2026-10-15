@@ -1,0 +1,992 @@
+/*
+ * lab.css — the banner design system for the lab.
+ *
+ * Every banner is authored at 1920x1080 and previewed with a CSS transform, so one
+ * stylesheet covers both the gallery thumbnail and the full-size render.
+ *
+ * All inner sizes are `calc(var(--u) * N)`. `--u` is set per banner by lab.js
+ * (min(width, height*1.78)/100 = 19.2px at 1080p).
+ *
+ * Two rules shape everything else:
+ *   1. The background always moves. It is three oversized gradient sheets sliding past each
+ *      other on an `alternate` ease, never a still image.
+ *   2. Text only ever sits on `--panel`, never on the sliding background. That is what makes
+ *      a moving background safe: the panel is opaque enough that the text contrast is a
+ *      property of the palette, not of whatever colour happens to be sliding past.
+ */
+
+/* ------------------------------------------------------------------ type */
+/* KoKitchen is Montserrat. Self-hosted so a render never depends on the network. */
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 400; font-display: block; src: url("vendor/montserrat-latin-400.woff2") format("woff2"); }
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 500; font-display: block; src: url("vendor/montserrat-latin-500.woff2") format("woff2"); }
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 600; font-display: block; src: url("vendor/montserrat-latin-600.woff2") format("woff2"); }
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 700; font-display: block; src: url("vendor/montserrat-latin-700.woff2") format("woff2"); }
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 800; font-display: block; src: url("vendor/montserrat-latin-800.woff2") format("woff2"); }
+@font-face { font-family: "Anton"; font-style: normal; font-weight: 400; font-display: block; src: url("vendor/anton-latin-400.woff2") format("woff2"); }
+/* The Deli Club source sets its headline and its figure in a high-contrast serif. Playfair
+   Display is the closest OFL match to it, so the campaign's type treatment has one; the
+   general decks do not use it, because the house voice is Montserrat and Anton. Variable
+   font: one file covers 400-900. */
+@font-face { font-family: "Playfair Display"; font-style: normal; font-weight: 400 900; font-display: block; src: url("vendor/playfair-display-latin-var.woff2") format("woff2"); }
+
+/* ------------------------------------------------------------------ shell */
+.bn {
+  position: relative;
+  width: var(--w);
+  height: var(--h);
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  /* Which side of its box the photo is anchored to. `faceEdge()` moves it off 50% for a photo
+     that declares a sliced edge, so the cut lands on the canvas border instead of mid-frame. */
+  --edge-x: 50%;
+  font-family: "Montserrat", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  font-weight: 500;
+  isolation: isolate;
+  user-select: none;
+}
+.bn * { box-sizing: border-box; margin: 0; }
+.bn__layer { position: absolute; inset: 0; }
+
+/* ------------------------------------------------------------------ background
+ * The brief's effect, exactly: a hard 50/50 split of two colours, thrown to twice the
+ * canvas width, sliding -25% -> +25% on an alternate ease. Three of them at different
+ * speeds and directions never settle, which is what makes the banner feel alive even
+ * while the copy is still.
+ *
+ * Each sheet's duration divides half the loop, so the composite is identical at t=0 and
+ * t=LOOP and the export can loop without a jump.
+ *
+ * How FAR each sheet travels is scaled by --energy, which follows the Phase. A sheet is 2x
+ * the canvas width and overhangs 50% on each side, so +-25% of its own width is exactly what
+ * covers the canvas at energy 1; every lower value still covers it, and travels proportionally
+ * less. The sheets never stop - they only stop competing with the copy.
+ */
+.bn__bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
+.bn__bgBase { position: absolute; inset: 0; }
+
+/* Registered, so the value interpolates. An unregistered custom property is a string, and
+ * `calc(-25% * var(--energy))` inside a keyframe would then never animate.
+ *
+ * The curve that drives it is NOT here: it lives in space.mjs as BG_ENERGY_CURVES and is
+ * applied by the GSAP timeline, so that `seek(t)` freezes the background at the same moment
+ * as the elements. `flat` is the control and never touches this value. */
+@property --energy { syntax: "<number>"; inherits: true; initial-value: 1; }
+
+.bn__slide {
+  position: absolute;
+  top: 0; bottom: 0; left: -50%; right: -50%;
+  background-image: linear-gradient(var(--ang, -60deg), var(--a) 50%, var(--b) 50%);
+  opacity: var(--op, .5);
+  animation: kkSlide var(--dur, 3s) ease-in-out infinite;
+  will-change: transform;
+}
+@keyframes kkSlide {
+  0%   { transform: translateX(calc(-25% * var(--energy, 1))); }
+  100% { transform: translateX(calc(25% * var(--energy, 1))); }
+}
+
+.bn__slide--stripes {
+  background-image:
+    repeating-linear-gradient(var(--ang), var(--a) 0 calc(var(--u) * 2.2), transparent calc(var(--u) * 2.2) calc(var(--u) * 4.4)),
+    linear-gradient(var(--ang), var(--a) 50%, var(--b) 50%);
+}
+.bn__slide--dots {
+  background-image:
+    radial-gradient(circle, var(--a) 0 calc(var(--u) * 1.05), transparent calc(var(--u) * 1.05)),
+    linear-gradient(var(--ang), var(--a) 50%, var(--b) 50%);
+  background-size: calc(var(--u) * 8) calc(var(--u) * 8), 100% 100%;
+}
+.bn__slide--rays {
+  background-image:
+    repeating-conic-gradient(from 0deg at 50% 50%, var(--a) 0 5deg, transparent 5deg 15deg),
+    linear-gradient(var(--ang), var(--a) 50%, var(--b) 50%);
+}
+.bn__slide--mesh {
+  background-image:
+    radial-gradient(ellipse 60% 60% at 28% 30%, var(--a) 0%, transparent 62%),
+    radial-gradient(ellipse 55% 55% at 74% 68%, var(--b) 0%, transparent 60%),
+    linear-gradient(var(--ang), var(--a) 50%, var(--b) 50%);
+}
+
+/* a soft vignette so type and product keep their edge over a busy background */
+.bn__vignette {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 48%, transparent 46%, rgba(0, 0, 0, .34) 100%);
+}
+.bn--light .bn__vignette {
+  background: radial-gradient(ellipse at 50% 48%, transparent 46%, rgba(29, 35, 26, .22) 100%);
+}
+
+/* The light a `spotlight-hero` Hook wins attention with.
+ *
+ * A layer rather than a filter on the object: a bloom has to be *behind* the cup to read as light
+ * on the ground, and it has to be able to move on its own beat, which a filter cannot. It is the
+ * only element a communication hypothesis adds, and it is only built when the Hook's plan asks for
+ * one, so no Banner without a Hook has it.
+ *
+ * It is anchored on `--glow-x`/`--glow-y`, which the renderer sets to sit under the product
+ * whichever side the layout put it on - the same anchor a future spotlight treatment would use.
+ * `opacity: 0` in the stylesheet, not in the timeline: a Banner that never builds a timeline (a
+ * Composition still, a contact sheet) must not show a light that only a timeline can take away. */
+.bn__halo {
+  position: absolute; inset: -8%; z-index: 2; pointer-events: none; opacity: 0;
+  background: radial-gradient(
+    closest-side at var(--glow-x, 72%) var(--glow-y, 48%),
+    color-mix(in srgb, var(--accent) 74%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 34%, transparent) 44%,
+    transparent 76%);
+}
+
+/* ------------------------------------------------------------------ decorations */
+.bn__decor { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.bn__decor > * { position: absolute; }
+.bn__decor svg { width: 100%; height: 100%; display: block; }
+
+.bn__splash { border-radius: 50% 42% 55% 45% / 48% 52% 44% 56%; background: var(--accent); opacity: .82; }
+.bn__ring { border-radius: 50%; border: calc(var(--u) * .7) solid var(--accent); }
+.bn__ring--dashed { border-style: dashed; }
+.bn__dot { border-radius: 50%; background: var(--accent2); }
+.bn__star { background: var(--accent2); clip-path: polygon(50% 0%, 60% 38%, 100% 50%, 60% 62%, 50% 100%, 40% 62%, 0% 50%, 40% 38%); }
+.bn__streak { background: var(--accent); border-radius: calc(var(--u) * 1); transform: rotate(-24deg); }
+.bn__bubble { border-radius: 50%; border: calc(var(--u) * .35) solid color-mix(in srgb, var(--accent) 62%, transparent); }
+.bn__doodle { border-radius: 50%; border: calc(var(--u) * .5) solid var(--accent); opacity: .55; }
+/* the campaign's marks: a dot and a tick, small and in the accent, never a shape that could be
+   mistaken for a product or a second headline */
+.bn__pip { border-radius: 50%; background: var(--accent); opacity: .9; }
+.bn__tick { background: var(--accent); border-radius: calc(var(--u) * .3); opacity: .85; }
+.bn__flame { background: linear-gradient(0deg, var(--accent) 0%, var(--accent2) 100%);
+  clip-path: polygon(50% 0%, 68% 30%, 82% 18%, 88% 52%, 100% 66%, 78% 100%, 22% 100%, 0% 66%, 12% 52%, 18% 18%, 32% 30%); }
+
+/* ------------------------------------------------------------------ product media */
+.bn__media { position: absolute; z-index: 3; display: flex; align-items: center; justify-content: center; }
+.bn__img { width: 100%; height: 100%; object-fit: cover; object-position: var(--edge-x) 50%; display: block; }
+/* Mirroring a sliced photo, not the box: the standalone `scale` property, so a treatment that
+   rotates `.bn__media` with `transform` and a Timeline that animates it are both unaffected. */
+.bn--mirror .bn__img { scale: -1 1; }
+
+/* cutoutFloat — the photo floats free, so it must already have alpha */
+.bn--prod-cutoutFloat .bn__img {
+  object-fit: contain;
+  filter: drop-shadow(0 calc(var(--u) * 1.6) calc(var(--u) * 2.2) rgba(0, 0, 0, .42));
+}
+.bn--prod-framed .bn__media { background: var(--panel); border-radius: calc(var(--u) * 1.2); overflow: hidden;
+  box-shadow: 0 calc(var(--u) * 2.2) calc(var(--u) * 4.2) rgba(0, 0, 0, .42);
+  /* ink is light on a dark palette and dark on a light one, so one rule frames both */
+  border: calc(var(--u) * .5) solid color-mix(in srgb, var(--ink) 60%, transparent); }
+.bn--prod-circleMask .bn__media { border-radius: 50%; overflow: hidden; border: calc(var(--u) * 1.1) solid var(--accent);
+  box-shadow: 0 calc(var(--u) * 1.8) calc(var(--u) * 3.6) rgba(0, 0, 0, .38); }
+.bn--prod-tiltedCard .bn__media { background: var(--panel); overflow: hidden; border-radius: calc(var(--u) * 1.2);
+  transform: rotate(-3.4deg); box-shadow: calc(var(--u) * 1.4) calc(var(--u) * 1.8) 0 var(--accent); }
+.bn--prod-bottomCrop .bn__media { overflow: hidden; }
+.bn--prod-bottomCrop .bn__img { object-fit: cover; object-position: var(--edge-x) 32%; }
+.bn--prod-polaroid .bn__media { background: #FFFFFF; padding: calc(var(--u) * 1.1) calc(var(--u) * 1.1) calc(var(--u) * 4.2);
+  transform: rotate(2.6deg); box-shadow: 0 calc(var(--u) * 2) calc(var(--u) * 3.6) rgba(0, 0, 0, .4); }
+.bn--prod-polaroid .bn__img { border-radius: calc(var(--u) * .2); }
+.bn--prod-arch .bn__media { overflow: hidden; border-radius: 50% 50% calc(var(--u) * 1.4) calc(var(--u) * 1.4) / 42% 42% calc(var(--u) * 1.4) calc(var(--u) * 1.4); }
+
+/* ---- the Membership card ---------------------------------------------------------------
+ * A drawn object, not a photo, and not a ground. It sits ON the composition the way a product
+ * photo does, so its colours come from the reference artwork rather than from the Banner's
+ * palette - with two of the three taken from the brand tokens, so it cannot drift off brand.
+ *
+ * The reference is `brand/punch-card-koki.jpg`: a rounded card, a tan band carrying the brand,
+ * a grid of punch circles, and the count. This is the motif, not a copy - the count is ten
+ * because the offer is ten meals, and the wording is the campaign's own.
+ *
+ * Its size, rotation and placement are the `card` axis: none, support, hero, tilt, crop,
+ * behind. The card must reinforce "membership" without becoming the message, so even `hero` is
+ * smaller than the copy panel and every placement keeps clear of the words - a card that tucks
+ * behind the panel is clipped by it, because the panel is opaque and paints above this layer.
+ */
+.bn__card {
+  /* the one colour that is not a brand token: the tan band of the reference card. The body is
+     kk-cream and the punches are kk-orange, so the card reads as an object in the brand. */
+  --card-band: #E8A87C;
+  --card-w: 16;
+  --cw: calc(var(--u) * var(--card-w));
+  position: absolute; z-index: 3;
+  left: var(--card-x, 76%); top: var(--card-y, 66%);
+  translate: calc(-50% + var(--card-dx, 0%)) calc(-50% + var(--card-dy, 0%));
+  rotate: var(--card-rot, 0deg);
+  width: var(--cw); aspect-ratio: .74;
+  background: #FEFAE0; color: #1D231A;
+  border: calc(var(--u) * .24) solid color-mix(in srgb, #1D231A 26%, transparent);
+  border-radius: calc(var(--cw) * .08);
+  box-shadow: 0 calc(var(--cw) * .05) calc(var(--cw) * .12) rgba(0, 0, 0, .34);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.bn__cardHead {
+  background: var(--card-band); padding: calc(var(--cw) * .05) calc(var(--cw) * .07);
+}
+.bn__cardBrand { display: block; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; font-size: calc(var(--cw) * .062); white-space: nowrap; }
+.bn__cardBody { flex: 1; display: flex; flex-direction: column; justify-content: space-between;
+  padding: calc(var(--cw) * .09) calc(var(--cw) * .08); }
+.bn__punches { display: grid; grid-template-columns: repeat(5, 1fr); gap: calc(var(--cw) * .06); }
+.bn__punch { aspect-ratio: 1; border-radius: 50%; border: calc(var(--cw) * .026) solid #FF7D00; }
+.bn__punch--used { background: #FF7D00; }
+.bn__cardFoot { display: flex; align-items: baseline; gap: calc(var(--cw) * .04); }
+.bn__cardCount { font-weight: 800; font-size: calc(var(--cw) * .17); line-height: .86; letter-spacing: -.04em; }
+.bn__cardUnit { font-weight: 800; text-transform: uppercase; letter-spacing: .16em; font-size: calc(var(--cw) * .052); }
+
+/* the placements. `support` is a card you notice second; `hero` is a card you notice first, and
+   still not before the offer; `tilt` is a small pile of two, because "tilted/layered" is a
+   different idea from "tilted"; `crop` runs off the edge of the canvas, which is what makes it
+   read as an object in a larger scene; `behind` tucks under the copy panel and is clipped by it.
+   `crop` pushes outwards, away from the copy, which is the direction the layout already knows. */
+.bn--card-support .bn__card { --card-w: 11; --card-rot: -4deg; }
+.bn--card-hero .bn__card { --card-w: 16; --card-rot: -2deg; }
+.bn--card-tilt .bn__card--front { --card-w: 13; --card-rot: -8deg; }
+.bn--card-tilt .bn__card--back { --card-w: 13; --card-rot: 4deg; --card-dx: 4%; --card-dy: 5%; opacity: .92; }
+.bn--card-crop .bn__card { --card-w: 18; --card-rot: -3deg;
+  --card-dx: calc(-1 * var(--card-tuck-x, 0%)); --card-dy: calc(-1 * var(--card-tuck-y, 0%) + 8%); }
+.bn--card-behind .bn__card { --card-w: 15; --card-dx: var(--card-tuck-x, 0%); --card-dy: var(--card-tuck-y, 0%); }
+
+/* ------------------------------------------------------------------ copy panel
+ * The one rule that makes a moving background safe. 94% opaque is enough to hold 4.5:1 for
+ * every text colour in every palette while the colour behind it is still faintly visible
+ * and moving.
+ */
+.bn__copy {
+  position: absolute; z-index: 4;
+  display: flex; flex-direction: column; align-items: flex-start;
+  gap: calc(var(--u) * 1.2);
+  max-width: 100%;
+  /* the ceiling fitCopy shrinks against; layouts that share the canvas lower it */
+  max-height: 84%;
+  padding: calc(var(--u) * 3.2) calc(var(--u) * 3.4);
+  /* fully opaque, on purpose. Any show-through makes the panel's contrast a function of
+     whatever photo is behind it, and over a high-contrast food shot it reads as a smudge
+     rather than as depth. The panel is the one surface the whole colour system rests on. */
+  background: var(--panel);
+  border-radius: calc(var(--u) * 1.6);
+  box-shadow: 0 calc(var(--u) * 2.4) calc(var(--u) * 5) rgba(0, 0, 0, .30);
+}
+.bn__kicker, .bn__headline, .bn__sub, .bn__cta { position: relative; }
+.bn__headline {
+  font-family: "Montserrat", sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+  line-height: .94;
+  letter-spacing: -.022em;
+  font-size: calc(var(--u) * var(--hl, 6) * var(--dirScale, 1) * var(--type-scale, 1));
+  display: flex; flex-direction: column; align-items: flex-start;
+}
+.bn__line { display: block; white-space: nowrap; }
+.bn__kicker {
+  font-weight: 800; text-transform: uppercase; letter-spacing: .24em;
+  font-size: calc(var(--u) * var(--kick, 1.7));
+  color: var(--accent);
+}
+.bn__sub {
+  font-weight: 600; text-transform: uppercase; letter-spacing: .1em;
+  font-size: calc(var(--u) * 1.9);
+  color: var(--accent);
+  white-space: nowrap;
+}
+/* The quiet second offer. The only element in the stack that is deliberately quiet: if it
+   competes with the hero price it is doing the wrong job. Whether it helps the sale at all is
+   one of the things the campaign deck is asking, which is why it is a slot and not a constant. */
+.bn__note {
+  font-weight: 700; text-transform: uppercase; letter-spacing: .14em;
+  font-size: calc(var(--u) * 1.5);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* The bonus, and how it is set. It has to be highly visible and it must never be louder than the
+   offer it decorates, so every treatment is the accent used as a surface behind the bonus's own
+   words - never a shape big enough to compete with the price. `none` is the campaign's control:
+   a bonus stated quietly, which is the version to beat.
+   `nowrap` on the bonus, the per-meal working and the second plan: they are supporting lines, and
+   a supporting line that breaks in half stops being one. The fit pass shrinks an over-wide line
+   to the panel, so a line that cannot fit gets smaller rather than wrapping. */
+.bn__bonus {
+  font-weight: 800; text-transform: uppercase; letter-spacing: .1em;
+  font-size: calc(var(--u) * 1.9);
+  white-space: nowrap;
+}
+.bn--bonus-strap .bn__bonus {
+  background: var(--accent); color: var(--on-accent);
+  padding: calc(var(--u) * .6) calc(var(--u) * 1.3);
+}
+.bn--bonus-ribbon .bn__bonus {
+  background: var(--accent); color: var(--on-accent);
+  padding: calc(var(--u) * .6) calc(var(--u) * 2.1) calc(var(--u) * .6) calc(var(--u) * 1.3);
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--u) * 1.4) 50%, 100% 100%, 0 100%);
+  rotate: -1.2deg;
+}
+.bn--bonus-badge .bn__bonus {
+  background: var(--panel); color: var(--accent);
+  border: calc(var(--u) * .26) solid var(--accent); border-radius: 999px;
+  padding: calc(var(--u) * .6) calc(var(--u) * 1.6);
+}
+.bn--bonus-highlight .bn__bonus {
+  color: var(--accent); border-bottom: calc(var(--u) * .42) solid var(--accent);
+  padding-bottom: calc(var(--u) * .22);
+}
+.bn__cta {
+  font-weight: 800; text-transform: uppercase; letter-spacing: .12em;
+  font-size: calc(var(--u) * 1.8);
+}
+
+/* ---- type treatments ---- */
+.bn--type-whiteCaps { --hl: 6.4; }
+.bn--type-whiteCaps .bn__headline { color: var(--ink); }
+
+.bn--type-twoTone { --hl: 6.6; }
+.bn--type-twoTone .bn__line:nth-child(2n) { color: var(--accent); }
+.bn--type-twoTone .bn__line:nth-child(2n+1) { color: var(--ink); }
+
+.bn--type-outline { --hl: 6.8; }
+.bn--type-outline .bn__headline { color: transparent; -webkit-text-stroke: calc(var(--u) * .24) var(--ink); }
+.bn--type-outline .bn__line:nth-child(2n) { color: var(--accent); -webkit-text-stroke: 0; }
+
+.bn--type-ribbonKicker .bn__kicker {
+  background: var(--accent); color: var(--on-accent);
+  padding: calc(var(--u) * .5) calc(var(--u) * 1.4);
+  transform: rotate(-1.6deg);
+  letter-spacing: .18em;
+}
+
+.bn--type-boxed { --hl: 5.4; }
+.bn--type-boxed .bn__headline { background: var(--accent); color: var(--on-accent);
+  padding: calc(var(--u) * .8) calc(var(--u) * 1.5); width: fit-content; max-width: 100%; }
+
+.bn--type-mixedBox { --hl: 6.2; }
+.bn--type-mixedBox .bn__line:nth-child(2n) { background: var(--accent); color: var(--on-accent); padding: 0 calc(var(--u) * .7); align-self: flex-start; }
+
+.bn--type-stacked { --hl: 8.2; }
+.bn--type-stacked .bn__headline { letter-spacing: -.045em; line-height: .88; }
+
+.bn--type-shadowPop { --hl: 6.2; }
+/* the shadow is accent2, not accent: on the palettes where accent and ink are the same
+   colour a same-colour shadow just thickens the letterform instead of offsetting it */
+.bn--type-shadowPop .bn__headline { color: var(--ink); text-shadow: calc(var(--u) * .34) calc(var(--u) * .34) 0 var(--accent2); }
+
+.bn--type-editorial { --hl: 5.6; }
+.bn--type-editorial .bn__headline { font-family: "Anton", "Montserrat", sans-serif; font-weight: 400; letter-spacing: .005em; line-height: .98; }
+.bn--type-editorial .bn__kicker { letter-spacing: .3em; }
+
+.bn--type-ticket { --hl: 5.6; }
+.bn--type-ticket .bn__headline { color: var(--ink); }
+.bn--type-ticket .bn__line { background: var(--ink); color: var(--panel); padding: 0 calc(var(--u) * .8); margin-bottom: calc(var(--u) * .4); }
+.bn--type-ticket .bn__line:nth-child(2n) { background: var(--accent); color: var(--on-accent); }
+
+.bn--type-ribbonKicker .bn__kicker { color: var(--on-accent); }
+.bn--type-mixedBox .bn__kicker { color: var(--accent); }
+.bn--type-boxed .bn__sub, .bn--type-ticket .bn__sub { color: var(--ink); }
+.bn--type-shadowPop .bn__sub { color: var(--ink); }
+.bn--type-editorial .bn__sub { color: var(--muted); }
+
+/* ---- the campaign's type treatments ---------------------------------------------------
+ * The Membership campaign is typography-led: the offer has to be understood in under a second,
+ * and the value is the hero. These are the two treatments that exist to make that true - one by
+ * size, one by surface - plus the general ones the campaign draws from.
+ */
+/* the figure is half again as big as the words it belongs to, and carries the accent. The
+   reading order is the offer, then the price - which is the order the ad is actually sold in. */
+.bn--type-priceHero { --hl: 6.0; }
+.bn--type-priceHero .bn__headline { line-height: .9; }
+.bn--type-priceHero .bn__fig { font-size: 1.5em; letter-spacing: -.04em; }
+/* the offer sits in a solid accent strap, the way a price bar does in a shop window. The strap
+   is the loudest surface on the canvas, which is the point: it is the value, not a decoration. */
+.bn--type-offerStrap { --hl: 5.4; }
+.bn--type-offerStrap .bn__headline {
+  background: var(--accent); color: var(--on-accent);
+  padding: calc(var(--u) * 1.4) calc(var(--u) * 2);
+  border-radius: calc(var(--u) * .5);
+  line-height: 1;
+}
+.bn--type-offerStrap .bn__kicker,
+.bn--type-offerStrap .bn__sub { color: var(--ink); }
+
+/* ---- the Deli Club campaign's type treatment ------------------------------------------
+ * The source sets the words and the figure in a serif and the label in a sans, so this is the
+ * one treatment that changes family rather than scale: the headline in Playfair Display, the
+ * figure half again as large, and the kicker left in Montserrat, which is what makes the pill
+ * read as a label on the ad rather than as a piece of the headline.
+ */
+.bn--type-deliSerif { --hl: 6.8; }
+.bn--type-deliSerif .bn__headline {
+  font-family: "Playfair Display", serif;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: -.012em;
+  line-height: 1.0;
+}
+.bn--type-deliSerif .bn__fig { font-size: 1.34em; }
+
+/* ---- the club's hierarchy -------------------------------------------------------------
+ * Two lines and a label. The label is the source's pill and it is the only filled surface in
+ * the lockup; the words take the ground's own colour and the figure carries the accent, which
+ * is the order the poster is read in. There is no third surface to spend, and the decks are
+ * held to that: the accent appears once.
+ *
+ * Both of the club's campaigns read the same way, so both are named by the same rules. The cup
+ * offer has no label, which is why the pill rule is scoped to the label element and not to the
+ * lockup: with no label there is nothing to paint.
+ */
+.bn--copy-deliclub .bn__kicker,
+.bn--copy-byoc .bn__kicker {
+  background: var(--accent); color: var(--on-accent);
+  font-weight: 700; text-transform: none; letter-spacing: .02em;
+  font-size: calc(var(--u) * 2.3);
+  border-radius: 999px;
+  padding: calc(var(--u) * .8) calc(var(--u) * 2.4);
+}
+.bn--copy-deliclub .bn__fig,
+.bn--copy-byoc .bn__fig { color: var(--accent); }
+/* the figure is the accent in every treatment except the one that already paints the offer's own
+   surface: `ticket` fills the second line with the accent, and an accent figure on an accent bar
+   is an invisible price. Inheriting the bar's own text colour is what keeps it readable. */
+.bn--copy-deliclub.bn--type-ticket .bn__fig,
+.bn--copy-byoc.bn--type-ticket .bn__fig { color: inherit; }
+/* the two lines are one statement, so they are set tight against each other; the gap between
+   the label and them stays the panel's own */
+.bn--copy-deliclub .bn__line,
+.bn--copy-byoc .bn__line { line-height: 1.04; }
+
+/* ---- the campaign's hierarchy ---------------------------------------------------------
+ * One ground, one text colour, zero or one accent - and the accent is spent on the figure and
+ * the CTA, never on a third surface. The title is set large enough to read as a title, the
+ * per-meal working is the one line that is quiet but still readable, and the second plan is
+ * quieter than that. Everything else is scale, grouping and spacing, which is where the
+ * typographic authority of the deck comes from.
+ */
+.bn--copy-membership .bn__kicker { font-size: calc(var(--u) * 2.1); letter-spacing: .2em; color: var(--ink); }
+.bn--copy-membership .bn__sub { font-size: calc(var(--u) * 2.2); letter-spacing: .06em; color: var(--accent); }
+.bn--copy-membership .bn__note { font-size: calc(var(--u) * 1.9); }
+.bn--copy-membership .bn__cta { font-size: calc(var(--u) * 2.1); }
+/* the figure is the accent in every treatment except the two that already paint the offer's own
+   surface, where inheriting that surface's text colour is what keeps the line readable */
+.bn--copy-membership .bn__fig { color: var(--accent); }
+.bn--copy-membership.bn--type-offerStrap .bn__fig,
+.bn--copy-membership.bn--type-ticket .bn__fig { color: inherit; }
+
+/* ---- the own-cup field -----------------------------------------------------------------
+ * The campaign's lockup is two lines of one sentence: the instruction, then the reward. They are
+ * set tight against each other because they are one statement, and the accent is spent on the
+ * reward clause - which is what the field has been rolling towards for four seconds, so it is the
+ * one thing on the canvas allowed to be loud.
+ */
+.bn--copy-owncup .bn__line { line-height: 1.04; }
+.bn--copy-owncup .bn__fig { color: var(--accent); }
+/* `priceLockup` sizes the figure line against the instruction, which is the same relationship the
+   offer has in the words: "Get 10% off" is the reason "Bring your OWN." is being said. */
+.bn--copy-owncup.bn--type-priceLockup .bn__line:not(:has(.bn__fig)) { font-weight: 600; }
+
+/* ---- CTAs ---- */
+.bn--cta-pill .bn__cta { background: var(--accent); color: var(--on-accent); border-radius: 999px;
+  padding: calc(var(--u) * 1) calc(var(--u) * 2.6); }
+.bn--cta-ribbon .bn__cta { background: var(--accent); color: var(--on-accent);
+  padding: calc(var(--u) * .9) calc(var(--u) * 3) calc(var(--u) * .9) calc(var(--u) * 1.9);
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--u) * 1.6) 50%, 100% 100%, 0 100%); }
+.bn--cta-chipArrow .bn__cta { border: calc(var(--u) * .24) solid var(--ink); color: var(--ink); border-radius: 999px;
+  padding: calc(var(--u) * .9) calc(var(--u) * 1.8); }
+.bn--cta-chipArrow .bn__cta::after { content: " →"; }
+.bn--cta-boxed .bn__cta { background: var(--ink); color: var(--panel); padding: calc(var(--u) * 1) calc(var(--u) * 2.4); }
+.bn--cta-underline .bn__cta { color: var(--ink); border-bottom: calc(var(--u) * .32) solid var(--accent);
+  padding-bottom: calc(var(--u) * .4); }
+.bn--cta-badgeSquare .bn__cta { background: var(--accent); color: var(--on-accent);
+  padding: calc(var(--u) * 1) calc(var(--u) * 2); border-radius: calc(var(--u) * .5); }
+.bn--cta-none .bn__cta { display: none; }
+
+/* ------------------------------------------------------------------ badge
+ * The badge sits outside the copy panel, over the sliding background, so every badge paints
+ * its own opaque fill and picks its own text colour against that fill.
+ */
+.bn__badge {
+  position: absolute; z-index: 6; top: calc(var(--u) * 4); right: calc(var(--u) * 4);
+  display: grid; place-items: center; text-align: center;
+  font-weight: 800; text-transform: uppercase; letter-spacing: .1em;
+  font-size: calc(var(--u) * 1.5); line-height: 1.15;
+  filter: drop-shadow(0 calc(var(--u) * 1) calc(var(--u) * 2) rgba(0, 0, 0, .34));
+}
+.bn--badge-starburst .bn__badge {
+  /* 17u and a .58 fit, not 16u and .46: the burst's points are at the extremes, so the text has
+     the middle of the shape to itself. At .46 the campaign's "+1 MEAL FREE" fitted to about
+     four pixels and stopped being a bonus anyone could read. */
+  width: calc(var(--u) * 17); height: calc(var(--u) * 17);
+  background: var(--accent); color: var(--on-accent); padding: 0; --fit: .58;
+  clip-path: polygon(50% 0%, 60% 36%, 93% 7%, 74% 40%, 100% 50%, 74% 60%, 93% 93%, 60% 64%,
+                     50% 100%, 40% 64%, 7% 93%, 26% 60%, 0% 50%, 26% 40%, 7% 7%, 40% 36%);
+}
+.bn--badge-circle .bn__badge { width: calc(var(--u) * 12); height: calc(var(--u) * 12); border-radius: 50%;
+  background: var(--accent); color: var(--on-accent); padding: calc(var(--u) * 1); --fit: .86; }
+.bn--badge-ribbon .bn__badge { background: var(--accent); color: var(--on-accent);
+  padding: calc(var(--u) * 1) calc(var(--u) * 2.2); transform: rotate(-2.2deg);
+  clip-path: polygon(0 0, 100% 0, 96% 100%, 4% 100%); }
+.bn--badge-pill .bn__badge { background: var(--panel); color: var(--ink); border-radius: 999px;
+  padding: calc(var(--u) * 1) calc(var(--u) * 2.4); border: calc(var(--u) * .24) solid var(--accent); }
+.bn--badge-corner .bn__badge { top: 0; right: 0; background: var(--accent); color: var(--on-accent);
+  padding: calc(var(--u) * 1.4) calc(var(--u) * 2.8); border-radius: 0 0 0 calc(var(--u) * 2.2); }
+.bn--badge-seal .bn__badge { width: calc(var(--u) * 14); height: calc(var(--u) * 14); border-radius: 50%;
+  border: calc(var(--u) * .38) dashed var(--accent);
+  background: var(--panel); color: var(--ink); padding: calc(var(--u) * 1.2); --fit: .82; }
+.bn--badge-none .bn__badge { display: none; }
+
+/* ------------------------------------------------------------------ layouts */
+.bn--lay-productLeft .bn__media { left: 0; top: 5%; width: 48%; height: 90%; }
+/* where the card sits when a placement asks for one: the zone the copy is not in, and the\(n   direction it tucks when it is asked to go behind the panel. */
+.bn--lay-productLeft { --card-x: 24%; --card-y: 66%; --card-tuck-x: 28%; }
+.bn--lay-productLeft .bn__copy { left: 52%; right: 4%; top: 50%; translate: 0 -50%; }
+
+.bn--lay-productRight .bn__media { right: 0; top: 5%; width: 48%; height: 90%; }
+.bn--lay-productRight { --card-x: 76%; --card-y: 66%; --card-tuck-x: -28%; }
+.bn--lay-productRight .bn__copy { left: 4%; right: 52%; top: 50%; translate: 0 -50%; }
+
+.bn--lay-centerStack .bn__media { left: 27%; top: 2%; width: 46%; height: 44%; }
+/* The panel is as wide as its content, not as wide as the layout allows. A fixed 76% left the
+   campaign's short offer floating inside a panel with two thirds of it empty, which reads as a
+   mistake rather than as a design. `translate` rather than `transform`, so it composes with
+   anything a product treatment does. */
+.bn--lay-centerStack .bn__copy { left: 50%; translate: -50% 0; bottom: 5%; align-items: center; text-align: center;
+  /* the photo occupies the top 46%, so the panel may never grow into it */
+  max-width: 76%; max-height: 47%; }
+.bn--lay-centerStack .bn__headline { align-items: center; }
+.bn--lay-centerStack { --card-x: 72%; --card-y: 21%; --card-tuck-y: 24%; }
+
+.bn--lay-productBehind .bn__media { right: -2%; top: -4%; width: 62%; height: 108%; }
+.bn--lay-productBehind .bn__copy { left: 4%; bottom: 8%; right: 54%; max-height: 72%; }
+.bn--lay-productBehind { --card-x: 78%; --card-y: 58%; --card-tuck-x: -30%; }
+
+.bn--lay-bottomBand .bn__media { right: 0; top: 0; width: 48%; height: 100%; }
+.bn--lay-bottomBand .bn__copy { left: 4%; right: 52%; top: 50%; translate: 0 -50%; }
+.bn--lay-bottomBand { --card-x: 76%; --card-y: 66%; --card-tuck-x: -28%; }
+
+.bn--lay-diagonalSplit .bn__media { right: 3%; top: 6%; width: 45%; height: 88%; }
+.bn--lay-diagonalSplit .bn__copy { left: 4%; right: 52%; top: 50%; translate: 0 -50%; }
+
+/* `translate`, not `transform: translateY(-50%)`: a transform here would outrank the product's
+   own `transform: rotate(...)` (same specificity, later in the file) and silently un-rotate
+   polaroid and tiltedCard. The standalone property composes with `transform` instead. */
+.bn--lay-circleMask .bn__media { right: 4%; top: 50%; width: 43%; aspect-ratio: 1; translate: 0 -50%; }
+.bn--lay-circleMask .bn__copy { left: 4%; right: 52%; top: 50%; translate: 0 -50%; }
+.bn--lay-circleMask { --card-x: 76%; --card-y: 64%; --card-tuck-x: -28%; }
+
+.bn--lay-fullBleed .bn__media { inset: 0; width: 100%; height: 100%; }
+.bn--lay-fullBleed .bn__copy { left: 5%; right: 34%; bottom: 6%; align-items: flex-start; max-height: 76%; }
+
+.bn--lay-cornerScrim .bn__media { inset: 0; width: 100%; height: 100%; }
+.bn--lay-cornerScrim .bn__copy { left: 5%; top: 7%; right: 46%; border-left: calc(var(--u) * .7) solid var(--accent); }
+
+.bn--lay-topBanner .bn__media { right: 0; top: 0; width: 40%; height: 100%; }
+.bn--lay-topBanner .bn__copy { left: 4%; right: 42%; top: 50%; translate: 0 -50%; }
+
+/* every layout puts the badge in the corner the copy is not in */
+.bn--lay-productLeft .bn__badge, .bn--lay-productBehind .bn__badge,
+.bn--lay-bottomBand .bn__badge, .bn--lay-diagonalSplit .bn__badge,
+.bn--lay-circleMask .bn__badge, .bn--lay-fullBleed .bn__badge {
+  top: calc(var(--u) * 4); right: calc(var(--u) * 4);
+}
+.bn--lay-productRight .bn__badge, .bn--lay-centerStack .bn__badge {
+  top: calc(var(--u) * 4); left: calc(var(--u) * 4); right: auto;
+}
+.bn--lay-cornerScrim .bn__badge { top: auto; bottom: calc(var(--u) * 5); right: calc(var(--u) * 5); }
+.bn--lay-topBanner .bn__badge { top: calc(var(--u) * 3); right: calc(var(--u) * 3); }
+
+/* ---- the cup field ---------------------------------------------------------------------
+ * A wall of paper cups, rolling, and the reusable cup that crosses it and clears it away.
+ *
+ * The ground is a tiled background rather than a few dozen boxes: one image and a
+ * `background-repeat` is a paint. It is its own element - `.bn__cups` - and not the field's own
+ * background, because the wipe is a mask and a mask on the field would erase the cup that is doing
+ * the erasing.
+ *
+ * `--sx`/`--sy`, `--speed` and `--wipe-x` are written by the Timeline, not by a CSS animation, so
+ * `seek(t)` freezes the field at the pose the frame is of - the same reason the background-energy
+ * curve is GSAP and not a keyframe. They are registered because an unregistered custom property is
+ * a string, and `calc(var(--sx) * 1px)` on a string is invalid at computed-value time, so the field
+ * would simply never move. The initial values are the states a Banner with no Timeline has to sit
+ * in: no roll, no smear, and nothing wiped.
+ *
+ * The sheets are hidden and the base colour kept: the cups are spaced, and a sliding sheet read
+ * through the gaps would put a second, unattributable motion on the same canvas. `bg` is still a
+ * held axis, so the vector still describes the Banner - the field is drawn over it, not instead
+ * of it.
+ */
+@property --sx { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --sy { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --speed { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --wipe-x { syntax: "<number>"; inherits: true; initial-value: 9999; }
+@property --trail { syntax: "<number>"; inherits: true; initial-value: 0; }
+
+.bn--cupfield .bn__slide { display: none; }
+.bn__cupfield { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
+
+/* The ground, and the only layer the wipe touches.
+ *
+ * `--wipe-x` is the wipe boundary in canvas pixels and `--wipe-soft` is the width of the dissolve:
+ * the cups are solid to the left of the boundary and gone a dissolve's width to its right, so the
+ * edge is the cup's own leading edge rather than a line. It is a mask and not a second element
+ * painted over the top, because a cover is a colour and this is an absence - the ground behind the
+ * wall has to show through.
+ *
+ * The stops are absolute lengths on a mask box that is one dissolve wider than the element. That is
+ * the whole trick: a boundary that runs past the right edge has to be expressible, and a percentage
+ * stop past 100% is not - Chrome rewrites the gradient and the mask comes out empty. In pixels the
+ * box simply has room for the dissolve to sit off-canvas, and at the other end the boundary runs
+ * behind the left edge and both stops collapse to zero, which is what "the view has been cleaned of
+ * cups" has to mean. The registered initial value is a boundary past any canvas, so a Banner with
+ * no Timeline shows the field. */
+/* The container is the wipe and nothing else. It does not paint the wall, and it cannot: the wall
+   is a stack of strips, and a mask on the container takes the whole stack with it, which is exactly
+   what the wipe needs. */
+.bn__cups {
+  position: absolute; inset: 0;
+  --wipe: linear-gradient(90deg, #000 calc(var(--wipe-x) * 1px),
+    transparent calc(var(--wipe-x) * 1px + var(--wipe-soft)));
+  -webkit-mask-image: var(--wipe);
+  mask-image: var(--wipe);
+  -webkit-mask-size: calc(100% + var(--wipe-soft)) 100%;
+  mask-size: calc(100% + var(--wipe-soft)) 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+/* One line of the grid, and the window its cups roll through.
+ *
+ * The strips are laid edge to edge and each is offset by exactly one cell, so the pattern is
+ * continuous across them: a `background-position` of a whole cell is the same pixel as no offset at
+ * all, and every strip therefore reads the same band of the tile. That is what lets one line roll
+ * one way and the line beside it the other way without the grid coming apart - the seam falls in
+ * the empty band between two rows of cups, where the tile has nothing to cut. */
+.bn__cupstrip {
+  position: absolute;
+  background-image: url(photos2/scene/owncup-paper-tile.png);
+  background-repeat: repeat;
+  background-size: var(--tile) var(--tile);
+  background-position: calc(var(--sx) * 1px) calc(var(--sy) * 1px);
+}
+/* Rows for a horizontal roll, columns for a vertical one: a strip is always a window the cups cross,
+   never a band they slide along. The extra pixel of overlap keeps a sub-pixel rounding from opening
+   a hairline between two strips. */
+.bn__cups[data-axis="h"] .bn__cupstrip,
+.bn__cups[data-axis="d"] .bn__cupstrip { left: 0; right: 0; top: var(--strip); height: calc(var(--tile) + 1px); }
+.bn__cups[data-axis="v"] .bn__cupstrip { top: 0; bottom: 0; left: var(--strip); width: calc(var(--tile) + 1px); }
+/* A roll that cannot be banded - the diagonal - is one layer across the whole canvas. */
+.bn__cups[data-axis="still"] .bn__cupstrip,
+.bn__cups[data-axis="wall"] .bn__cupstrip { inset: 0; }
+/* The speed effect: two more copies of the same tile, dragged back along that strip's own roll and
+   blurred, so the wall reads as moving rather than as having moved. They are pseudo-elements of the
+   strip and not elements of their own, because they have to carry the strip's own mask and its own
+   direction - a smear that survived the wipe, or that trailed the wrong way on the strips that
+   counter-roll, is the one thing that would give the trick away.
+ *
+ * The offset comes from `--smear-x`/`--smear-y`, which the renderer points back down the roll, and
+ * the strength from `--speed`, which the Timeline ties to the roll. At rest `--speed` is 0 and both
+ * copies are invisible; the blur is still on them, but a layer at zero opacity is not composited. */
+.bn__cupstrip::before, .bn__cupstrip::after {
+  content: ""; position: absolute; inset: 0;
+  background-image: url(photos2/scene/owncup-paper-tile.png);
+  background-repeat: repeat;
+  background-size: var(--tile) var(--tile);
+}
+.bn__cupstrip::before {
+  background-position: calc(var(--sx) * 1px + var(--smear-x)) calc(var(--sy) * 1px + var(--smear-y));
+  opacity: calc(var(--speed) * .85);
+  filter: blur(calc(var(--tile) * .09));
+}
+.bn__cupstrip::after {
+  background-position: calc(var(--sx) * 1px + var(--smear-x) * 2) calc(var(--sy) * 1px + var(--smear-y) * 2);
+  opacity: calc(var(--speed) * .55);
+  filter: blur(calc(var(--tile) * .2));
+}
+/* One cell of the grid, at rest. The hero cup is a box inside it rather than a positioned element
+   of its own: a cup that stands *on* the ground is the idea, and an absolutely placed hero that
+   happens to land on a cell is a product shot laid over a pattern.
+ *
+ * It does not read the roll. The cup crosses the field; it is not carried by it, and a cell that
+ * moved with the ground would put the cup's landing point wherever the roll happened to stop.
+ *
+ * `z-index` puts the cell over the halo. The halo is light on the ground and belongs behind the
+ * cup; the cell is a stacking context of its own (it is transformed), so without this it paints
+ * at the field's zero level and the bloom lands on the hero's face instead of under its foot. */
+.bn__cupcell {
+  position: absolute; left: 0; top: 0; z-index: 3;
+  width: var(--tile); height: var(--tile);
+  transform: translate(var(--cell-x), var(--cell-y));
+}
+/* The hero stands on the cell's baseline - the same floor the paper cups stand on, which is what
+   makes it one cup in the grid being different. It grows from its foot, not from its middle: a
+   cup that scales about its centre sinks through the floor as it gets bigger.
+
+   The image is anchored to the bottom of that box for the same reason: a cutout is not the shape
+   of its frame, so `contain` alone would centre whatever empty canvas the crop left above the
+   foot and the cup would hang above the floor. */
+.bn--cupfield .bn__media {
+  left: calc(50% - var(--tile) * var(--mug-w) / 2);
+  top: calc(var(--tile) * var(--baseline) - var(--tile) * var(--mug-h));
+  width: calc(var(--tile) * var(--mug-w)); height: calc(var(--tile) * var(--mug-h));
+  transform-origin: 50% 100%;
+}
+/* The cup's own trail: a second copy of the alpha asset, held behind the cup along the direction it
+   is travelling - it comes from the right, so the trail sits to the right - and gone by the time the
+   cup lands. It is the same picture in the same box, so the entrance, the shift and the cell all
+   apply to it without a second set of tweens. */
+.bn--cupfield .bn__trail {
+  position: absolute; inset: 0; z-index: -1;
+  object-fit: contain; object-position: 50% 100%;
+  transform: translateX(calc(var(--tile) * .35)) scaleX(1.3);
+  transform-origin: 0% 100%;
+  opacity: var(--trail, 0);
+  filter: blur(calc(var(--tile) * .08));
+  -webkit-mask-image: linear-gradient(90deg, #000 15%, transparent 90%);
+  mask-image: linear-gradient(90deg, #000 15%, transparent 90%);
+  pointer-events: none;
+}
+/* A contact shadow under the cup, on the image and not on its box: the cutout is not the shape of
+   its frame, so a shadow on the frame would be a shadow of a rectangle. It is what puts the cup on
+   the floor rather than in front of it, and it is on the image because the box carries the entry
+   blur and one element cannot hold two filters. */
+.bn--cupfield .bn__img { object-position: 50% 100%;
+  filter: drop-shadow(calc(var(--u) * 1.1) calc(var(--u) * .9) calc(var(--u) * 2) rgba(29, 35, 26, .34)); }
+/* The panel comes out of the cup's side, so it is the field's own composition: it sits in the
+   half the field is not using and is clipped against the edge the cup is on. */
+/* The words are half the Banner, so they take the half the cup is not in. The column is a little
+   over half the canvas wide, and the headline unit is raised until the type stops at that edge on
+   its own: the panel is authored by the size of the sentence, not by a box the sentence is made to
+   fit. `fitType` still caps it, so the size here is a request and not a promise. */
+.bn--cupfield .bn__copy { left: 29%; right: 4%; box-shadow: calc(var(--u) * -1.4) calc(var(--u) * 1.6) calc(var(--u) * 4) rgba(29, 35, 26, .18); }
+.bn--cupfield.bn--copy-owncup { --hl: 8.4; }
+/* The bloom is placed on the cup, and the Timeline writes its position as a fraction of the
+   canvas. The halo's own -8% inset would make those fractions of a box that is 116% of the
+   canvas and offset by 8%, which is a bloom that misses the cup by a fixed distance.
+
+   Its own light, too. The Hook's halo is a wide, soft wash because it has to light a whole frame
+   for one arriving object; here the cup is standing in a grid of cups of its own colour, and a
+   wide wash over them is not light, it is brown fog. Two stops instead of one: a tight bright core
+   at the cup, and a halo that is gone within about two cells. */
+.bn--cupfield .bn__halo {
+  inset: 0;
+  background:
+    /* The pool: light landing on the floor the cup stands on. It is what seats the object - without
+       it a glow behind a cup is a lamp hanging in the air behind it. Wide and shallow, because a
+       floor is horizontal and the light on it spreads sideways. */
+    radial-gradient(ellipse calc(var(--tile) * 1.2) calc(var(--tile) * .46) at var(--glow-x, 30%) var(--glow-base, 84%),
+      color-mix(in srgb, var(--accent-fill) 58%, #FFFFFF) 0%,
+      color-mix(in srgb, var(--accent-fill) 30%, transparent) 34%,
+      transparent 70%),
+    /* The aura: an ellipse, not a circle. The object is tall and narrow, so a circular bloom is a
+       disc the cup is standing in front of rather than light coming off it. The core is mixed most
+       of the way to white - at full orange the centre of the bloom is the same colour as the cups,
+       which is brown fog and not light - and the falloff is steep, so the aura ends inside about
+       two cells instead of washing the whole wall. */
+    radial-gradient(ellipse calc(var(--tile) * 1.35) calc(var(--tile) * 2.5) at var(--glow-x, 30%) var(--glow-y, 50%),
+      color-mix(in srgb, var(--accent-fill) 24%, #FFFFFF) 0%,
+      color-mix(in srgb, var(--accent-fill) 52%, #FFFFFF) 26%,
+      color-mix(in srgb, var(--accent-fill) 34%, transparent) 52%,
+      transparent 76%);
+}
+
+/* ------------------------------------------------------------------ safe area */
+.bn__safe { position: absolute; inset: 5%; z-index: 20; pointer-events: none; outline: calc(var(--u) * .18) dashed color-mix(in srgb, var(--accent) 70%, transparent); display: none; }
+.bn--show-safe .bn__safe { display: block; }
+.bn--show-safe .bn__grid { position: absolute; inset: 0; z-index: 20; pointer-events: none;
+  background-image: linear-gradient(color-mix(in srgb, var(--accent) 30%, transparent) 1px, transparent 1px),
+                    linear-gradient(90deg, color-mix(in srgb, var(--accent) 30%, transparent) 1px, transparent 1px);
+  background-size: 10% 10%; }
+
+/* ------------------------------------------------------------------ feedback overlay */
+.bn__flags { position: absolute; z-index: 30; right: calc(var(--u) * 1.4); bottom: calc(var(--u) * 1.4); display: flex; gap: calc(var(--u) * .6); }
+.bn__flag { font-size: calc(var(--u) * 1.2); font-weight: 800; padding: calc(var(--u) * .3) calc(var(--u) * .8); border-radius: calc(var(--u) * .4); }
+.bn__flag--bad { background: #C81E1E; color: #FFF; }
+.bn__flag--warn { background: #B45309; color: #FFF; }
+
+/* ================================================================== directions
+ * The Expression Kit's layer. Everything above this line is the design space; everything below
+ * it is what a Direction adds on top of its value set. A Direction is not a palette: it also
+ * decides whether the type sits on the field or on a surface, how large the type wants to be,
+ * and which material gesture the frame carries. That is why it is a stylesheet and a value set.
+ *
+ * The classes are `bn--dir-<id>` and are applied by `renderBanner` from `DIRECTIONS` in space.mjs.
+ * They never change the colour system (the palette does that) and they never change the geometry
+ * of the photo (the layout does that); they change the posture of the type and the surface it is
+ * read on, which is the part of a Direction the axes cannot express.
+ */
+
+/* ---- panel posture ------------------------------------------------------
+ * `field` dissolves the copy panel into the Direction's ground, so the type reads as sitting ON
+ * the field rather than inside a card. The panel is still opaque - it is the ground's own tone -
+ * so the contrast contract is untouched: this changes the surface's identity, not its opacity.
+ * `surface` (the default) keeps the panel as a material object: paper on kraft, board on teal. */
+.bn--panel-field .bn__copy {
+  background: var(--bg);
+  box-shadow: none;
+  border-radius: 0;
+}
+
+/* ---- the Direction's own character ---- */
+
+/* Olive Editorial: the type is the poster. Larger than the house default, tighter, and the
+   panel is the field, so a headline can be the loudest object on the canvas without a box. */
+.bn--dir-olive-editorial { --dirScale: 1.14; }
+.bn--dir-olive-editorial .bn__copy { padding: calc(var(--u) * 4.2) calc(var(--u) * 3.6); }
+.bn--dir-olive-editorial .bn__headline { letter-spacing: -.034em; line-height: .86; }
+.bn--dir-olive-editorial .bn__kicker { letter-spacing: .32em; }
+
+/* Teal Service: a clean type block against a cropped warm food image. The copy carries the
+   slate-board edge as its one material cue; the field stays teal behind it. */
+.bn--dir-teal-service { --dirScale: .98; }
+.bn--dir-teal-service .bn__copy {
+  border-left: calc(var(--u) * .7) solid var(--accent2);
+}
+.bn--dir-teal-service .bn__headline { line-height: .94; }
+
+/* Slate Feast: dark slate stage, type anchored to a quiet zone. The panel is the field, so the
+   cream type sits directly on the slate and the food carries every other colour. */
+.bn--dir-slate-feast { --dirScale: 1.06; }
+.bn--dir-slate-feast .bn__copy { padding: calc(var(--u) * 3.8) calc(var(--u) * 3.4); }
+.bn--dir-slate-feast .bn__headline { letter-spacing: -.026em; line-height: .9; }
+
+/* Cream Linen: bright, generous, high whitespace, precise alignment. The panel is a paper
+   surface with room around the type, which is what makes the negative space read as intentional. */
+.bn--dir-cream-linen { --dirScale: 1.10; }
+.bn--dir-cream-linen .bn__copy {
+  padding: calc(var(--u) * 4.6) calc(var(--u) * 4.4);
+  border-radius: calc(var(--u) * .6);
+}
+.bn--dir-cream-linen .bn__headline { line-height: .92; }
+
+/* Kraft Garden: modern type over casual kraft warmth. The paper edge is the material cue - a
+   kraft-toned strip on the copy's edge - and the type stays precise so the two do not compete. */
+.bn--dir-kraft-garden { --dirScale: 1.0; }
+.bn--dir-kraft-garden .bn__copy {
+  border-left: calc(var(--u) * 1.1) solid color-mix(in srgb, #C7A36B 78%, var(--panel));
+}
+.bn--dir-kraft-garden .bn__kicker { letter-spacing: .26em; }
+
+/* Garden Afterglow: cinematic warm crop, simple type, one luminous signal. The copy is a dark
+   board with a deeper shadow so the food's warm light stays the brightest thing in the frame. */
+.bn--dir-garden-afterglow { --dirScale: .96; }
+.bn--dir-garden-afterglow .bn__copy {
+  box-shadow: 0 calc(var(--u) * 3.2) calc(var(--u) * 6.4) rgba(0, 0, 0, .46);
+}
+.bn--dir-garden-afterglow .bn__kicker { color: var(--accent); }
+
+/* ---- typography-led treatments -----------------------------------------
+ * The Expression Kit asks for typography to be a design actor, not a label inside a panel. These
+ * three treatments do that with scale, break and rhythm rather than with boxes: the panel never
+ * gets a border, a ribbon or a second colour - the type itself is the shape.
+ */
+/* the display field: the house condensed display face at poster scale, set hard to the left
+   edge with no decoration at all. Scale contrast is the whole device. */
+.bn--type-displayField { --hl: 8.8; }
+.bn--type-displayField .bn__headline {
+  font-family: "Anton", "Montserrat", sans-serif;
+  font-weight: 400;
+  letter-spacing: .004em;
+  line-height: .84;
+}
+.bn--type-displayField .bn__kicker { font-size: calc(var(--u) * 1.6); letter-spacing: .34em; }
+
+/* the price lockup: the figure line is the hero and everything above it is the caption for it.
+   This is the "confident price/value lockup" - the value is read before the words that name it. */
+.bn--type-priceLockup { --hl: 4.8; }
+.bn--type-priceLockup .bn__headline { line-height: .96; letter-spacing: -.01em; }
+.bn--type-priceLockup .bn__fig { font-size: 2.15em; letter-spacing: -.05em; line-height: .9; display: inline-block; }
+.bn--type-priceLockup .bn__line:not(:has(.bn__fig)) { font-weight: 700; letter-spacing: .04em; }
+
+/* the editorial stack: mixed scale inside one headline - the first line carries the weight, the
+   second steps down and takes the accent. Asymmetry comes from the scale break, not from a rule. */
+.bn--type-editorialStack { --hl: 7.2; }
+.bn--type-editorialStack .bn__headline { line-height: .9; letter-spacing: -.028em; }
+.bn--type-editorialStack .bn__line:first-child { font-size: 1.14em; }
+.bn--type-editorialStack .bn__line:last-child { font-size: .8em; color: var(--accent); }
+
+/* ---- the lockup's posture ----------------------------------------------
+ * The membership lockup is six lines: a kicker, two display lines, a per-meal working, a bonus
+ * and a call to action. Given a full-size panel, a renderer that treats all six as peers produces
+ * the generic advertisement - five lines of similar weight inside a rounded box. A Direction
+ * refuses that. It reads the lockup editorially: one hero, and everything else a caption.
+ *
+ * Two changes make that happen, and they are the reason this batch is a design space rather than
+ * a cross-product:
+ *
+ * 1. The accent is spent once. The figure is the accent, and so is the call to action - they are
+ *    the same idea at two moments. The per-meal working steps down in TONE instead of in hue, so
+ *    the canvas never carries three competing signals. `02-color-system.md` asks for one dominant
+ *    ground, one primary text colour and at most one graphic accent; four orange elements is not
+ *    a loud banner, it is an incoherent palette.
+ *
+ * 2. The panel hugs the type. The copy is no longer a rectangle the text happens to sit in, so the
+ *    composition is authored by the type's own shape - a wide line is a wide object, a short line
+ *    is a small one. This is the difference between "type placed in a panel" and "type is the
+ *    panel", and it is the one change that most separates this batch from the old deck.
+ */
+.bn--direction .bn__copy { gap: calc(var(--u) * .8); width: fit-content; }
+.bn--direction .bn__kicker { font-size: calc(var(--u) * 1.55); }
+.bn--direction .bn__sub { font-size: calc(var(--u) * 1.5); color: var(--ink); opacity: .84; }
+.bn--direction .bn__note { font-size: calc(var(--u) * 1.4); }
+.bn--direction .bn__bonus { font-size: calc(var(--u) * 1.5); }
+.bn--direction .bn__cta { font-size: calc(var(--u) * 1.7); }
+.bn--direction.bn--copy-membership .bn__sub { color: var(--ink); opacity: .84; }
+
+/* The hug needs a ceiling per layout, because "as wide as the longest line" is only an
+   improvement while the line is shorter than the space the layout gives it. Past that ceiling
+   the text overflows, which is exactly the case the fit pass then handles by stepping the type
+   down - so the ceiling is what makes the fit pass meaningful rather than dead code. */
+.bn--direction.bn--lay-productRight .bn__copy,
+.bn--direction.bn--lay-productLeft .bn__copy,
+.bn--direction.bn--lay-productBehind .bn__copy,
+.bn--direction.bn--lay-circleMask .bn__copy,
+.bn--direction.bn--lay-topBanner .bn__copy { max-width: 46%; --fit-w: 46; }
+.bn--direction.bn--lay-fullBleed .bn__copy,
+.bn--direction.bn--lay-cornerScrim .bn__copy { max-width: 44%; --fit-w: 44; }
+.bn--direction.bn--lay-bottomPlate .bn__copy { max-width: 44%; --fit-w: 44; }
+
+/* A cutout cannot fill a full-width strip - it can only be as tall as the strip - so `contain`
+ * leaves it adrift in the middle of the band. Anchoring it to the band's bottom edge, which is
+ * the canvas's own bottom edge, puts the object ON the poster's bottom edge instead: the food
+ * sits on the plate rather than floating above it. */
+.bn--direction.bn--lay-bottomPlate .bn__img { object-position: 50% 100%; }
+
+/* A floating cutout is fitted by its own aspect ratio, and a landscape cutout in the tall
+ * half-canvas box of `productLeft`/`productRight` fills about half of it - the food reads as a
+ * small object adrift on a large field. Shortening the box to roughly the cutouts' own aspect
+ * is what makes the subject fill the space the layout gave it. */
+.bn--direction.bn--prod-cutoutFloat.bn--lay-productLeft .bn__media,
+.bn--direction.bn--prod-cutoutFloat.bn--lay-productRight .bn__media { top: 17%; height: 66%; }
+
+/* `leaves` is the shared space's value, and there it paints an organic blob in the accent. Inside
+ * a Direction the gesture is meant to be a leaf, so the shape is re-cut here rather than in the
+ * shared rule: a shared rule would repaint Banners the Composition and Scene decks already carry,
+ * and those renders are the evidence their decks were judged on. The second accent is the right
+ * ink for it - a leaf in the primary accent competes with the figure. */
+.bn--direction .bn__splash {
+  background: var(--accent2);
+  border-radius: 0 100% 0 100%;
+  opacity: .8;
+}
+
+/* A Direction's product is a cutout object, so the layouts that give it the field to itself -
+ * `fullBleed`, `cornerScrim`, `productBehind`, `bottomPlate` - fit it whole instead of cropping
+ * it. Cropping is a decision (`bottomCrop` makes it, and the boxed treatments make it), not
+ * something that should happen because the box is bigger than the picture. Outside a Direction
+ * the rule is unchanged: those layouts were built for environmental photography and `cover` is
+ * what fills them. */
+.bn--direction.bn--lay-fullBleed .bn__img,
+.bn--direction.bn--lay-cornerScrim .bn__img,
+.bn--direction.bn--lay-productBehind .bn__img,
+.bn--direction.bn--lay-bottomPlate .bn__img { object-fit: contain; }
+
+/* ---- material decor: a print rule and a punch stamp -------------------- */
+/* A rule is a printed margin line, not a shape: full width, hairline, in the accent. */
+.bn__rule { background: var(--accent); opacity: .9; }
+/* A stamp is the punch grid of the membership card, small and in the accent, drawn in CSS. */
+.bn__stamp {
+  background:
+    radial-gradient(circle, var(--accent) 0 32%, transparent 34%) 0 0 / 33.4% 50%,
+    radial-gradient(circle, var(--accent) 0 32%, transparent 34%) 0 0 / 33.4% 50%;
+  opacity: .85;
+}
+
+/* ---- the bottom plate layout -------------------------------------------
+ * A wide crop across the bottom of the canvas and the copy above it: the editorial poster shape,
+ * and the one layout built for type that is larger than a panel. The photo is a full-width band,
+ * so it may not carry a treatment that needs a box of its own (see WIDE_MEDIA_LAYOUTS). */
+.bn--lay-bottomPlate .bn__media { left: 0; right: 0; bottom: 0; top: auto; width: 100%; height: 42%; }
+.bn--lay-bottomPlate .bn__copy { left: 5%; top: 6%; right: 42%; max-height: 50%; }
+.bn--lay-bottomPlate { --card-x: 78%; --card-y: 26%; --card-tuck-y: 30%; }
+.bn--lay-bottomPlate .bn__badge { top: calc(var(--u) * 4); right: calc(var(--u) * 4); }

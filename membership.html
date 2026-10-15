@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Membership ad — KoKitchen banner</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="lab.css">
+<link rel="stylesheet" href="play.css">
+</head>
+<body>
+<div id="host"></div>
+<script src="vendor/gsap.min.js"></script>
+<script>
+  const fail = (m) => { const d = document.createElement("div"); d.className = "error"; d.textContent = m; document.body.appendChild(d); };
+  window.addEventListener("error", (e) => fail(`${e.message} @ ${e.filename || "?"}:${e.lineno || 0}`));
+  window.addEventListener("unhandledrejection", (e) => fail(`rejected: ${e.reason}`));
+</script>
+<script type="module">
+  import { play } from "./play.mjs";
+  // `k1-b0001` is the Membership deck's first Banner: 10 MEALS · €69, €6.90 per meal, October
+  // bonus, 6 meals · €49, JOIN NOW. Any other id in banners.json works through ?id=.
+  const id = new URLSearchParams(location.search).get("id") || "k1-b0001";
+  await play(id, document.getElementById("host"));
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bring your own cup — KoKitchen banner</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="lab.css">
+<link rel="stylesheet" href="play.css">
+</head>
+<body>
+<div id="host"></div>
+<script src="vendor/gsap.min.js"></script>
+<script>
+  // A module that throws never reaches its own handler, so the reporter must be classic.
+  const fail = (m) => { const d = document.createElement("div"); d.className = "error"; d.textContent = m; document.body.appendChild(d); };
+  window.addEventListener("error", (e) => fail(`${e.message} @ ${e.filename || "?"}:${e.lineno || 0}`));
+  window.addEventListener("unhandledrejection", (e) => fail(`rejected: ${e.reason}`));
+</script>
+<script type="module">
+  import { play } from "./play.mjs";
+  // `u1-b0024` is the own-cup Banner we rendered to video (`tv-poster.mjs`). Any other id in
+  // banners.json works through ?id=.
+  const id = new URLSearchParams(location.search).get("id") || "u1-b0024";
+  await play(id, document.getElementById("host"));
+</script>
+</body>
+</html>

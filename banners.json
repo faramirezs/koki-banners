@@ -1,0 +1,104 @@
+[
+ {
+  "palette": {
+   "mode": "light",
+   "panel": "#FFFFFF",
+   "ink": "#5F6F52",
+   "accent": "#C2410C",
+   "accent2": "#282F23",
+   "muted": "#66755A",
+   "onAccent": "#FEFAE0",
+   "slide": [
+    "#FEFAE0",
+    "#F7F1DA",
+    "#FEFAE0"
+   ]
+  },
+  "layout": "circleMask",
+  "bg": "duoSlide",
+  "bgEnergy": "swell",
+  "type": "ticket",
+  "card": "none",
+  "bonus": "none",
+  "badge": "none",
+  "cta": "none",
+  "decor": "marks",
+  "motion": "maskSlam",
+  "roleMotion": "hush",
+  "copy": {
+   "key": "byoc",
+   "campaign": "byoc",
+   "offer": "Bring your own cup get up to 10% off in hot drinks",
+   "lines": [
+    "Bring your own cup",
+    "get up to 10% off",
+    "in hot drinks"
+   ],
+   "fig": "get up to 10% off"
+  },
+  "photo": "cappuccino-09-4wlgzbqusgjpg.jpg",
+  "product": "framed",
+  "cut": "cut/cappuccino-09-4wlgzbqusgjpg.png",
+  "edge": null,
+  "id": "u1-b0024",
+  "seed": 1,
+  "mode": "byoc",
+  "experiment": "byoc@v1.0hixzq2",
+  "width": 1920,
+  "height": 1080,
+  "paletteName": "deliCream"
+ },
+ {
+  "palette": {
+   "mode": "light",
+   "panel": "#FEFAE0",
+   "ink": "#1D231A",
+   "accent": "#C2410C",
+   "accent2": "#5F6F52",
+   "muted": "#5F6F52",
+   "onAccent": "#FEFAE0",
+   "slide": [
+    "#B5BEA0",
+    "#BEC7A9",
+    "#B5BEA0"
+   ]
+  },
+  "layout": "productLeft",
+  "bg": "duoSlide",
+  "bgEnergy": "swell",
+  "type": "stacked",
+  "card": "hero",
+  "bonus": "badge",
+  "badge": "none",
+  "cta": "underline",
+  "decor": "dots",
+  "motion": "slamLeft",
+  "roleMotion": "hierarchy",
+  "copy": {
+   "key": "membership",
+   "campaign": "membership",
+   "kicker": "KO KITCHEN MEMBERSHIP",
+   "offer": "10 MEALS \u00b7 \u20ac69",
+   "lines": [
+    "10 MEALS",
+    "\u20ac69"
+   ],
+   "fig": "\u20ac69",
+   "sub": "\u20ac6.90 per meal",
+   "bonus": "OCTOBER BONUS \u00b7 +1 MEAL FREE",
+   "note": "6 meals \u00b7 \u20ac49",
+   "cta": "JOIN NOW"
+  },
+  "photo": "cheeseburger-01-nhd6bs5qcgcjpg.jpg",
+  "product": "framed",
+  "cut": "cut/cheeseburger-01-nhd6bs5qcgcjpg.png",
+  "edge": null,
+  "id": "k1-b0001",
+  "seed": 1,
+  "mode": "membership",
+  "experiment": "membership@v1.0hl7v2b",
+  "width": 1920,
+  "height": 1080,
+  "paletteName": "memberSage"
+ }
+]
